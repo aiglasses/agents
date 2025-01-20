@@ -16,22 +16,11 @@ OPENAI_RESPONSE_FORMAT = {
 }
 
 
-def to_json_blob(data):
-    try:
-        # Try to parse the string as JSON
-        json.loads(data)
-        print("error: data is already JSON\n", flush=True)
-        return data
-    except Exception:
-        pass
-
-    if 'content' in data:
-        data['content'] = data['content'].replace("\n", "").replace("\r", "")
-    return json.dumps(data, ensure_ascii=False, separators=(',', ':')) + "\n"
-
-
 def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool) -> str:
     openai_format = deepcopy(OPENAI_RESPONSE_FORMAT)
+    finish_reason = chunk_obj["finish_reason"]
+    if "content" in chunk_obj and chunk_obj["content"]:
+        chunk_obj["content"] = chunk_obj['content'].replace("\n", "").replace("\r", "")
     if stream:
         delta_object = {
                     "role": "assistant",
@@ -39,6 +28,8 @@ def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool) -> str
                     "refusal": None,
                     "tool_calls": []
                 }
+        if finish_reason == "tool_calls":
+            delta_object["tool_calls"] = chunk_obj["tool_calls"]
         choices = [{
                 "delta": delta_object,
                 "logprobs": None,
@@ -55,6 +46,8 @@ def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool) -> str
                     "tool_calls": [],
                     "audio": None
                 }
+        if finish_reason == "tool_calls":
+            message_object["tool_calls"] = chunk_obj["tool_calls"]
         choices = [{
                 "message": message_object,
                 "logprobs": None,
@@ -63,5 +56,4 @@ def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool) -> str
             }]
         openai_format["object"] = "chat.completion"
         openai_format["choices"] = choices
-
-    return "data:" + to_json_blob(openai_format) + "\n"
+    return "data:" + json.dumps(openai_format, ensure_ascii=False, separators=(',', ':')) + "\n"

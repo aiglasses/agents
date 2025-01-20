@@ -1,11 +1,10 @@
 # -*- encoding: utf-8 -*-
-
+import traceback
 from openai import OpenAI
 from typing import List, Dict, Any, Generator, Optional
 
 from log_util import logger
 from base_agent import BaseAgent
-
 
 SYSTEM_PROMPT = """
 # 角色
@@ -38,7 +37,7 @@ class FoodAgent(BaseAgent):
     def __init__(self,
                  model: str,
                  api_key: str,
-                 base_url: str = "https://prem.dashscope.aliyuncs.com/compatible-mode/v1"
+                 base_url: str
                  ):
         super(FoodAgent, self).__init__()
         self._model = model
@@ -48,55 +47,164 @@ class FoodAgent(BaseAgent):
     def model(self) -> str:
         return self._model
 
-    def _get_stream_response(self, messages: List[Dict[str, Any]], *args, **kwargs) -> Generator:
+    def _choose_tools(self, tools: List[Dict[str, Any]], messages: List[Dict[str, Any]]):
+        """
+        Determines whether tools are needed and returns the corresponding tools from the available tools.
+        this is a simple implementation, you should implement your own based on your criteria
+
+        Note:
+            Assume that all available functions are within the 'tools' list.
+            You need to implement the _choose_tools method to decide which tool to use based on your criteria.
+            The method should return the appropriate tools.
+            If the tools returned matches the parameters parsed by ShargeAI
+            ShargeAI will invoke the corresponding tool and return the tool's result.
+            Currently, the only available tool in ShargeAI is 'take_a_photo', which can be called when needed.
+
+            that is:
+            tools:
+            [{"type": "function", "function": {
+                "name": "take_a_photo",
+                "description": "Take a photo, used when visual information is needed",
+                "parameters": {}}}]
+
+        :param tools: A list of available tools. currently take_a_photo is available.
+        :param messages: A list of available messages.
+        :return: Returns the corresponding tool name if needed, or None if no matching tool is found.
+        """
+        if not messages:
+            logger.warning(f'messages is empty')
+            return
+        content = messages[-1].get('content')
+        if isinstance(content, str):
+            # Assume that when the value of 'content' is of type string, 'take_a_photo' tool needs to be called.
+            return [{"id": "123", "type": "function", "function": {"name": "take_a_photo", "arguments": ""}}]
+        return
+
+    def _get_stream_response(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None,
+                             *args, **kwargs) -> Generator:
+        """
+        handles streaming responses from the OpenAI API, choosing appropriate tools when needed.
+
+        :param messages: A list of message dictionaries for the chat conversation.
+        :param tools: Optional list of available tools for use during the conversation.
+        :param args: Additional positional arguments.
+        :param kwargs: Additional keyword arguments passed to the OpenAI API.
+        :return: A generator yielding partial responses from the API or tool calls.
+        """
+        tool_calls = self._choose_tools(tools, messages)
+        if tool_calls:
+            yield {"content": "", "finish_reason": "tool_calls", "tool_calls": tool_calls}
+            logger.info(f"yield function call: {tool_calls}")
+            return
+        logger.info(f"messages to openai: {messages}")
         completion = self.client.chat.completions.create(model=self.model, messages=messages, stream=True, **kwargs)
         full_content = ""
         for chunk in completion:
             if len(chunk.choices) > 0 and chunk.choices[0].delta.content:
                 full_content += chunk.choices[0].delta.content
                 yield {"content": chunk.choices[0].delta.content, "finish_reason": chunk.choices[0].finish_reason}
+        logger.info(f'llm reply: {full_content}')
 
-    def _get_response(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Optional[str]]:
+    def _get_response(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None,
+                      **kwargs) -> Dict[str, Optional[str]]:
+        """
+        handles responses from the OpenAI API, either choosing tools or getting a response from OpenAI.
+
+        :param messages: A list of message dictionaries for the chat conversation.
+        :param tools: Optional list of available tools to use during the conversation.
+        :param kwargs: Additional keyword arguments passed to the OpenAI API.
+        :return: A dictionary with the response content and the finish reason.
+        """
+        tool_calls = self._choose_tools(tools, messages)
+        if tool_calls:
+            logger.info(f"return function call: {tool_calls}")
+            return {"content": "", "finish_reason": "tool_calls", "tool_calls": tool_calls}
+        logger.info(f"messages to openai: {messages}")
         completion = self.client.chat.completions.create(model=self.model, messages=messages, **kwargs)
-        return {"content": completion.choices[0].message.content, "finish_reason": completion.choices[0].finish_reason}
+        content = completion.choices[0].message.content
+        logger.info(f"llm reply: {content}")
+        return {"content": content, "finish_reason": completion.choices[0].finish_reason}
 
     def stream_chat(
             self,
             messages: List[Dict[str, Any]],
+            tools: Optional[List[Dict[str, Any]]] = None,
             *args,
             **kwargs
     ) -> Generator:
-        try:
-            sys_prompt = [{"role": "system", "content": SYSTEM_PROMPT}]
-            msg = sys_prompt + messages
-            yield from self._get_stream_response(messages=msg, **kwargs)
-        except Exception as e:
-            logger.error(str(e))
-            yield {"content": "开小差了，请稍后再试试", "finish_reason": "stop"}
+        """
+        This method streams a chat response while considering available tools and handling potential errors.
 
-    def chat(self, messages: List[Dict[str, Any]], *args, **kwargs) -> Dict[str, Optional[str]]:
+        :param messages: A list of message dictionaries for the chat conversation.
+        :param tools: Optional list of available tools to use during the conversation.
+        :param args: Additional positional arguments passed to the method.
+        :param kwargs: Additional keyword arguments passed to the OpenAI API or other related functions.
+        :return: A generator yielding partial responses or an error message.
+        """
         try:
             sys_prompt = [{"role": "system", "content": SYSTEM_PROMPT}]
-            msg = sys_prompt + messages
-            res = self._get_response(messages=msg, **kwargs)
-            return res
+            msgs = sys_prompt + messages
+            yield from self._get_stream_response(messages=msgs, tools=tools, **kwargs)
         except Exception as e:
-            logger.error(str(e))
-            return {"content": "开小差了，请稍后再试试", "finish_reason": "stop"}
+            logger.error(traceback.format_exc())
+            yield {"content": "Something went wrong, please try again later.", "finish_reason": "stop"}
+
+    def chat(
+            self,
+            messages: List[Dict[str, Any]],
+            tools: Optional[List[Dict[str, Any]]] = None,
+            *args,
+            **kwargs
+    ) -> Dict[str, Optional[str]]:
+        try:
+            sys_prompt = [{"role": "system", "content": SYSTEM_PROMPT}]
+            msgs = sys_prompt + messages
+            return self._get_response(messages=msgs, tools=tools, **kwargs)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            return {"content": "Something went wrong, please try again later.", "finish_reason": "stop"}
 
 
 if __name__ == "__main__":
-    prompt = """我有高血压怎么办"""
+    prompt = "我有高血压怎么办"
+    vision_prompt = "图中这道菜有哪些食材啊"
     from client_initializer import agent_client
-    msg = [{"role": "user", "content": prompt}]
-    stream = input("流式还是非流式(1表示流式，其他任何字符表示非流式）：\n")
+
+    vision_msg = [{'role': 'user', 'content': [
+        {'type': 'text', 'text': vision_prompt},
+        {'type': 'image_url', 'image_url': {
+            'url': 'https://glass-ai-test.oss-cn-shanghai.aliyuncs.com//fool.jpeg'}}]}]
+
+    msg = [{'role': 'user', 'content': prompt}]
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "take_a_photo",
+                "description": "Take a photo, used when visual information is needed",
+                "parameters": {}
+            }
+        }
+    ]
+    # stream = input(f"stream if 1，else non-stream")
+    stream = input("1 if stream else non-stream")
+
     if stream == "1":
-        # 流式
-        res = agent_client.stream_chat(messages=msg)
-        reply_content = ""
+        # stream
+        res = agent_client.stream_chat(messages=msg, tools=tools)
         for chunk in res:
             print(chunk)
+
+
+        print('\n\n vision request')
+        vision_res = agent_client.stream_chat(messages=vision_msg, tools=tools)
+        for chunk in vision_res:
+            print(chunk)
     else:
-        # 非流式
-        res = agent_client.chat(messages=msg)
-        print(f"非流式结果：{res}")
+        # non-stream
+        res = agent_client.chat(messages=msg, tools=tools)
+        print(f"non-stream result：{res}")
+
+        print('\n\n vision request')
+        vision_res = agent_client.chat(messages=vision_msg, tools=tools)
+        print(vision_res)

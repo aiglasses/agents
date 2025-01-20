@@ -1,10 +1,10 @@
 import os
+import traceback
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request
 from loguru import logger
 from fastapi.responses import StreamingResponse
 from typing import Dict, List
-
 
 from token_validation import CustomMiddleware
 from base_agent import BaseAgent
@@ -29,26 +29,26 @@ if os.environ.get("ENV", "dev") != "dev":
     app.add_middleware(CustomMiddleware)
 
 
-def stream_helper(client: BaseAgent, messages: List[Dict[str, str]], **kwargs):
+def stream_helper(client: BaseAgent, messages: List[Dict[str, str]], tools, **kwargs):
     try:
-        for chunk_obj in client.stream_chat(messages=messages, **kwargs):
+        for chunk_obj in client.stream_chat(messages=messages, tools=tools, **kwargs):
             res = to_openai_response(chunk_obj=chunk_obj, stream=True)
-            logger.info(f"返回结果：{res}")
+            logger.info(f"stream result：{res}")
             yield res
     except Exception as e:
         logger.error(str(e))
-        yield to_openai_response(chunk_obj={"content": "抱歉，网络开小差了", "finish_reason": "stop"}, stream=True)
+        yield to_openai_response(chunk_obj={"content": "Something went wrong, please try again later.", "finish_reason": "stop"}, stream=True)
 
 
-def helper(client: BaseAgent, messages: List[Dict[str, str]], **kwargs):
+def helper(client: BaseAgent, messages: List[Dict[str, str]], tools, **kwargs):
     try:
-        res = client.chat(messages=messages, **kwargs)
+        res = client.chat(messages=messages, tools=tools, **kwargs)
         res = to_openai_response(chunk_obj=res, stream=False)
-        logger.info(f"返回结果：{res}")
+        logger.info(f"non-stream result：{res}")
         return res
     except Exception as e:
         logger.error(str(e))
-        return to_openai_response(chunk_obj={"content": "抱歉，网络开小差了", "finish_reason": "stop"}, stream=False)
+        return to_openai_response(chunk_obj={"content": "Something went wrong, please try again later.", "finish_reason": "stop"}, stream=False)
 
 
 @router.post("/chat")
@@ -58,15 +58,18 @@ async def chat(request: Request):
         body = await request.json()
         stream = body.pop("stream")
         messages = body.pop("messages")
+        logger.info(f"messages: {messages}")
+        tools = body.pop("tools")
+        logger.info(f"tools: {messages}")
         expert = body.pop("model")
         logger.info(f"【入参】\n：{body}")
         if stream:
-            return StreamingResponse(stream_helper(agent_client, messages, **body), media_type="application/json")
+            return StreamingResponse(stream_helper(agent_client, messages, tools, **body), media_type="application/json")
         else:
-            return helper(agent_client, messages, **body)
+            return helper(agent_client, messages, tools, **body)
 
     except Exception as e:
-        logger.error(str(e))
+        logger.error(traceback.format_exc())
         raise e
 
 app.include_router(router, prefix="/custom_agent")
