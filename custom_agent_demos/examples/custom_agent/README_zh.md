@@ -271,7 +271,7 @@ else:
 <summary>不需要调用tool</summary>
 
 ```
-{
+'data:{
   "id":"chatcmpl-123",
   "object":"chat.completion.chunk",
   "created":1694268190,
@@ -288,7 +288,7 @@ else:
       "finish_reason": null
         }
     ]
-}
+}'
 
 ```
 </details>
@@ -297,7 +297,7 @@ else:
 <summary>需要调用tool</summary>
 
 ```
-{
+'data:{
     "id":"chatcmpl-123",
     "object":"chat.completion.chunk",
     "created":1694268190,
@@ -325,7 +325,7 @@ else:
             "finish_reason": "tool_calls"
         }
     ]
-}
+}'
 
 ```
 </details>
