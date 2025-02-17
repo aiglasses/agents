@@ -76,7 +76,7 @@ app.include_router(router, prefix="/custom_agent")
 
 if __name__ == "__main__":
     import socket
-    logger.info(f"server starting on ip: 8.153.78.47, port: 30000")
+    logger.info(f"server starting on ip: localhost, port: 30000")
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
