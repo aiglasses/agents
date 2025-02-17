@@ -16,11 +16,9 @@ OPENAI_RESPONSE_FORMAT = {
 }
 
 
-def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool) -> str:
+def to_openai_response(chunk_obj: Dict[str, Optional[str]], stream: bool = True) -> str:
     openai_format = deepcopy(OPENAI_RESPONSE_FORMAT)
     finish_reason = chunk_obj["finish_reason"]
-    if "content" in chunk_obj and chunk_obj["content"]:
-        chunk_obj["content"] = chunk_obj['content'].replace("\n", "").replace("\r", "")
     if stream:
         delta_object = {
                     "role": "assistant",

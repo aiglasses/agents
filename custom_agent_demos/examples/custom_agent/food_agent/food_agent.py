@@ -1,9 +1,14 @@
 # -*- encoding: utf-8 -*-
 import traceback
+import sys
 from openai import OpenAI
 from typing import List, Dict, Any, Generator, Optional
+from pathlib import Path
 
-from log_util import logger
+project_path = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_path))
+
+from custom_agent_demos.log_util import logger
 from base_agent import BaseAgent
 
 SYSTEM_PROMPT = """

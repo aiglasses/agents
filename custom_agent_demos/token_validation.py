@@ -4,10 +4,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pathlib import Path
-project_path = Path(__file__).resolve().parent.parent.parent
+project_path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_path))
 
-from log_util import logger
+from custom_agent_demos.log_util import logger
 
 
 def verify_access_token(request: Request) -> None:

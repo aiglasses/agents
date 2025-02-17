@@ -15,36 +15,13 @@
 ### 1. 安装依赖
 ```pip install -r requirements.txt```
 
-### 2. 添加环境变量API_KEY和API_BASE
-```
-export API_KEY=your_api_key
-export API_BASE=your_api_base
-```
+### 2. 在config.yaml中补充必要信息
+
 
 ### 3.创建智能体服务
-- 首先，你需要自己写一个智能体类，类中必须实现chat和stream_chat方法，分别表示非流式和流式输出。这两个方法返回的结果必须是个Dict对象，且必须包含content和finish_reason字段。<br>你可以参考示例：[food_agent.py](./food_agent.py)来实现
-- 实现好自己的类后，可以在[client_initializer.py](./client_initializer.py)中实例化这个类。例如：
-  
-    ```python
-    # -*- encoding: utf-8 -*-
-    import os
-    from food_agent import FoodAgent
-    
-    MODEL = "qwen-vl-plus"
-    API_KEY = os.getenv("API_KEY")
-    BASE_URL = os.getenv("BASE_URL")
-    agent_client = FoodAgent(model=MODEL, api_key=API_KEY, base_url=BASE_URL)
-    ```
-- 然后，在server.py中导入client_initializer.py中实例化的类。
-  
-    ```python
-    from client_initializer import agent_client
-    ```
-- 最后，启动http服务。
-  
-    ```shell
-    nohup python server.py &
-    ```
+```shell
+nohup python server.py &
+```
     
 ### 4.闪极拍拍镜中添加智能体
   
