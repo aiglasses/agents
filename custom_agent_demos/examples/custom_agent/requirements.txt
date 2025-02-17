@@ -1,0 +1,4 @@
+uvicorn==0.32.1
+fastapi==0.115.6
+loguru==0.7.2
+openai==1.57.0
