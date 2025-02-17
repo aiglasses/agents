@@ -1,0 +1,18 @@
+ali:
+  addr: "your base_url"
+  apiKey: "your api_key"
+  txt1:
+    large:  "your txt model name"
+  vl1:
+    small:  "your vl model name"
+
+
+volc:
+  addr: "your base_url"  # Note: prem prefix is 300~500ms faster, but 5 times more expensive
+  apiKey: "your api_key"
+  txt1:
+    large:  "your endpoint from volc"
+  txt2:
+    large:  "your endpoint from volc for Deepseek-R1"  # DeepSeek-R1
+  vl1:
+    small:  "your endpoint from volc"

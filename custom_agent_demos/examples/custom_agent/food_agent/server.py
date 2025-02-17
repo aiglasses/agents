@@ -1,12 +1,17 @@
 import os
+import sys
 import traceback
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request
 from loguru import logger
 from fastapi.responses import StreamingResponse
 from typing import Dict, List
+from pathlib import Path
 
-from token_validation import CustomMiddleware
+project_path = Path(__file__).resolve().parent.parent.parent.parent.parent
+sys.path.insert(0, str(project_path))
+
+from custom_agent_demos.token_validation import CustomMiddleware
 from base_agent import BaseAgent
 from client_initializer import agent_client
 from response_util import to_openai_response
