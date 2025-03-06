@@ -1,18 +1,18 @@
 ali:
-  addr: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  apiKey: "sk-e38e0bc2771d4753b06be2eb721b9181"
+  addr: "your base_url"
+  apiKey: "your api_key"
   txt1:
-    large:  "qwen-max-latest"
+    large:  "your txt model name"
   vl1:
-    small:  "qwen-vl-plus"
+    small:  "your vl model name"
 
 
 volc:
-  addr: "https://ark.cn-beijing.volces.com/api/v3"  # Note: prem prefix is 300~500ms faster, but 5 times more expensive
-  apiKey: "f377bf91-2e91-4a45-9227-e665d4cf1eeb"
+  addr: "your base_url"  # Note: prem prefix is 300~500ms faster, but 5 times more expensive
+  apiKey: "your api_key"
   txt1:
-    large:  "ep-20250122150720-m7448"
+    large:  "your endpoint from volc"
   txt2:
-    large:  "ep-20250209180156-qv8zw"  # DeepSeek-R1
+    large:  "your endpoint from volc for Deepseek-R1"  # DeepSeek-R1
   vl1:
-    small:  "ep-20250122145757-ng74n"
+    small:  "your endpoint from volc"
