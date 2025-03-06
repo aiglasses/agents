@@ -23,7 +23,7 @@ llm_app = FastAPI()
 llm_router = APIRouter()
 
 
-def validate_params(body: Dict[str, Any]) -> Tuple[Union[bool, str], List, List, str]:
+def validate_params(body: Dict[str, Any]) -> Tuple[Union[bool, str], List, List, str, str, str]:
     stream = body.get("stream", "")
     if not stream:
         raise HTTPException(status_code=400, detail="error: stream is empty")
@@ -32,9 +32,11 @@ def validate_params(body: Dict[str, Any]) -> Tuple[Union[bool, str], List, List,
         raise HTTPException(status_code=400, detail="error: messages is empty")
     tools = body.get("tools", [])
     model = body.get("model", "")
+    location = body.get("location", "")
+    localtime = body.get("localtime", "")
     if not model:
         raise HTTPException(status_code=400, detail="error: model is empty")
-    return stream, messages, tools, model
+    return stream, messages, tools, model, location, localtime
 
 if os.environ.get("ENV", "dev") != "dev":
     app.add_middleware(CustomMiddleware)
@@ -49,10 +51,10 @@ async def test():
 #     app.add_middleware(CustomMiddleware)
 
 def stream_helper(body, llm: str):
-    stream, messages, tools, model = validate_params(body)
+    stream, messages, tools, model, location, localtime = validate_params(body)
     try:
         client = LLM_EXPERT_MAP[llm]
-        for c in client(messages, tools):
+        for c in client(messages, tools, location, localtime):
             yield c
     except Exception as e:
         yield to_openai_response({"content": retry_later_msg(), "finish_reason": "stop"})
